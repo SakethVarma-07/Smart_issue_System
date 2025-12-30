@@ -1,46 +1,113 @@
-# Getting Started with Create React App
+# Smart Issue Board
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is an internship assignment for a Smart Issue Board, evaluating problem-solving skills, practical decision-making, and ability to work with ambiguous requirements.
 
-## Available Scripts
+## Tech Stack
 
-In the project directory, you can run:
+-   **Frontend:** React with TypeScript (created using `create-react-app`)
+-   **Backend/Database:** Firebase Firestore
+-   **Authentication:** Firebase Auth (Email/Password)
+-   **Hosting:** Vercel
+-   **Code Hosting:** Public GitHub repository
+-   **Styling:** Bootstrap 5 & React-Bootstrap
 
-### `npm start`
+## Core Features Implemented
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+1.  **Authentication:** Users can sign up and log in using email and password. The logged-in user's email is displayed on the dashboard.
+2.  **Create Issue:** Users can create issues with the following fields: Title, Description, Priority (Low/Medium/High), Status (Open/In Progress/Done), Assigned To (user email or name), Created Time, and Created By.
+3.  **Similar Issue Handling:** When creating an issue, the system attempts to detect similar existing issues based on title (substring match) and description (50% common words). If similar issues are found, a warning is displayed with a list of similar issues, and the user is prompted to confirm if they still want to create the new issue.
+4.  **Issue List:** All issues are displayed, sorted by newest first. Users can filter issues by Status and Priority.
+5.  **Status Rule:** An issue cannot move directly from 'Open' to 'Done'. If a user attempts this, a friendly alert message is displayed.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Deployment
 
-### `npm test`
+The application is intended to be deployed on Vercel.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Firebase Configuration
 
-### `npm run build`
+Firebase configuration is handled using environment variables. When deploying to Vercel, you need to set the following environment variables with your Firebase project's credentials:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+-   `REACT_APP_FIREBASE_API_KEY`
+-   `REACT_APP_FIREBASE_AUTH_DOMAIN`
+-   `REACT_APP_FIREBASE_PROJECT_ID`
+-   `REACT_APP_FIREBASE_STORAGE_BUCKET`
+-   `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`
+-   `REACT_APP_FIREBASE_APP_ID`
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+These can be configured in your Vercel project settings under "Settings" -> "Environment Variables."
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## README Requirements
 
-### `npm run eject`
+### 1. Why did you choose the frontend stack you used?
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+I chose **React with TypeScript** because:
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+*   **Familiarity and Efficiency:** React is a widely used and well-documented library that I am proficient with, allowing for rapid development and focusing on problem-solving rather than learning a new framework.
+*   **Component-Based Architecture:** React's component-based structure makes it easy to build reusable UI elements, which is beneficial for a project like an issue board with repetitive components (e.g., issue cards, forms).
+*   **TypeScript for Type Safety:** TypeScript adds static typing to JavaScript, which is crucial for building robust and maintainable applications. It helps catch errors early, improves code readability, and enhances developer experience, especially in a team environment or for projects with evolving requirements.
+*   **Ecosystem:** The React ecosystem is vast, with many libraries and tools available for routing (React Router DOM), state management, and styling, which can be easily integrated.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### 2. Explain your Firestore data structure
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+My Firestore data structure is designed to be straightforward and efficient for the given requirements. I have a single top-level collection named `issues`.
 
-## Learn More
+Each document within the `issues` collection represents a single issue and has the following fields:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```typescript
+interface Issue {
+  id: string; // Document ID (automatically generated by Firestore)
+  title: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High';
+  status: 'Open' | 'In Progress' | 'Done';
+  assignedTo: string; // User email or name
+  createdAt: firebase.firestore.Timestamp; // Server-generated timestamp
+  createdBy: string; // Email of the user who created the issue
+}
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+**Justification:**
+
+*   **Single Collection for Issues:** All issues reside in a single collection, simplifying queries for fetching all issues or filtering them.
+*   **Field Indexing:** Firestore automatically indexes fields, making queries on `status`, `priority`, and `createdAt` efficient for filtering and sorting.
+*   **`createdAt` as Timestamp:** Using `serverTimestamp()` ensures consistent timekeeping across all clients and simplifies sorting by newest first.
+*   **`createdBy` and `assignedTo`:** Storing user emails for these fields is simple and directly supports the requirement to display this information. For more complex user management, a separate `users` collection could be added.
+
+### 3. Explain how you handled similar issues
+
+Similar issue handling is implemented in the `CreateIssue.tsx` component. Before a new issue is officially added to Firestore, a `checkSimilarity` function is called.
+
+**Similarity Detection Logic:**
+
+1.  **Fetch All Issues:** The function fetches all existing issues from the `issues` collection in Firestore.
+2.  **Normalization:** Both the new issue's title/description and existing issues' titles/descriptions are converted to lowercase for case-insensitive comparison.
+3.  **Title Similarity:** It checks for substring matches between the new issue's title and existing issue titles. If `newTitle` is a substring of `existingTitle` or vice-versa, they are considered similar.
+4.  **Description Similarity (Word-based):** The descriptions are split into words, and the number of common words between the new issue's description and an existing issue's description is calculated. If the number of common words exceeds 50% of the length of the shorter description, they are considered similar.
+
+**User Interaction:**
+
+*   If `checkSimilarity` finds one or more similar issues, the new issue creation is paused.
+*   A warning message is displayed to the user, listing the titles, statuses, and priorities of the detected similar issues.
+*   The user is then given two options:
+    *   **"Confirm Create Issue":** If clicked, the new issue is created despite the similarity warning.
+    *   **"Cancel":** If clicked, the new issue creation is aborted, and the form is reset.
+
+**Justification for Approach:**
+
+This approach provides a user-friendly and flexible way to handle similar issues. It avoids rigid prevention, allowing the user to make the final decision while still providing valuable warnings. The similarity detection logic is a simple but effective heuristic, balancing performance with accuracy for this assignment's scope. For a production-grade application, more advanced natural language processing (NLP) techniques could be employed for better semantic similarity detection.
+
+### 4. Mention what was confusing or challenging
+
+1.  **`search_replace` Tool Exact Matching:** Initially, using the `search_replace` tool in the Cursor environment proved challenging due to its strict requirement for exact string matching, including subtle differences in newline characters (`\r\n` vs `\n`). This led to several failed attempts and required careful manual verification of file contents to ensure the `old_string` parameter was perfectly aligned with the target content. I eventually resorted to reading the file and then overwriting it completely when `search_replace` became too cumbersome for larger blocks of code.
+2.  **Firebase Security Rules (Implicit):** While not directly implemented in the frontend code, understanding and implicitly considering Firebase Security Rules was a constant underlying thought. Ensuring that the Firestore data model and client-side interactions would be compatible with a secure set of rules (e.g., only authenticated users can create/update issues, users can only update their own issues, etc.) required forethought, even if not explicitly coded in this submission.
+3.  **Ambiguous Similarity Definition:** The requirement for "Similar Issue Handling" was intentionally ambiguous ("There is no single correct approach."). Deciding on a simple yet effective heuristic for similarity (substring matching for titles, common words for descriptions) required practical judgment to avoid over-engineering while still fulfilling the core feature.
+
+### 5. Mention what you would improve next
+
+1.  **Enhanced Similar Issue Detection:** I would explore more sophisticated NLP techniques for issue similarity. This could involve using TF-IDF, word embeddings, or even a simple machine learning model to provide more semantically accurate similarity scores, rather than just keyword or substring matching. This would reduce false positives and improve the quality of suggestions.
+2.  **Backend Validation (Firestore Security Rules & Cloud Functions):** For a production application, implementing robust server-side validation using Firestore Security Rules and potentially Firebase Cloud Functions would be critical. This would ensure data integrity (e.g., preventing direct Open to Done transitions even if client-side validation is bypassed) and enforce proper authorization (e.g., only allowing authorized users to modify issues).
+3.  **User Management Beyond Email:** Expand user management to include user profiles, roles, and more detailed assignment capabilities. Currently, `assignedTo` is a simple string. This could be linked to actual user accounts in a `users` collection.
+4.  **Issue Detail View and Editing:** Implement a dedicated page or modal for viewing individual issue details and allowing users to edit all fields (with appropriate permissions and validation).
+5.  **Pagination and Infinite Scrolling:** For a large number of issues, implement pagination or infinite scrolling in the `IssueList` to improve performance and user experience.
+6.  **Styling and UI/UX:** The current UI is minimal. I would invest time in a proper UI framework (e.g., Material UI, Ant Design) or custom CSS to create a more visually appealing and user-friendly interface.
+7.  **Real-time Updates on Issue Edits:** While new issues and status changes are reflected in real-time, other edits would also benefit from real-time updates across clients.
