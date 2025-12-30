@@ -23,7 +23,7 @@
 
 @keyframes moveBackground {
   0% { background-position: 0 0; }
-  100% { background-position: 40px 40px; }
+  100% { background-position: 41px 40px; }
 }
 
 .container.position-relative {
